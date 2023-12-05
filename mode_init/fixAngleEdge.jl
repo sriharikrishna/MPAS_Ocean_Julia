@@ -46,8 +46,16 @@ end
 
 
 
-
 function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=false,
+    printRelevantMeshData=false)
+
+    return fix_angleEdge(dcEdge, xCell, yCell, xEdge, yEdge, angleEdge, cellsOnEdge, nCells, 
+                            determineYCellAlongLatitude, printOutput, printRelevantMeshData)
+
+end
+
+function fix_angleEdge(dcEdge, xCell, yCell, xEdge, yEdge, angleEdge, cellsOnEdge, nCells; 
+                  determineYCellAlongLatitude=true,printOutput=false,
                   printRelevantMeshData=false)
 
     sqrt3over2 = sqrt(3.0)/2.0
@@ -61,10 +69,10 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         # mesh_file = NCDatasets.Dataset(mesh_file_name, "r", format=:netcdf4_classic)
 
 
-        dcEdge = round(maximum(mpasOcean.dcEdge))
-        DeltaXMax = maximum(mpasOcean.dcEdge) * 1.1
-        xCell::Array{Float64,1} = mpasOcean.xCell
-        yCell::Array{Float64,1} = mpasOcean.yCell
+        dcEdge = round(maximum(dcEdge))
+        DeltaXMax = maximum(dcEdge) * 1.1
+        xCell::Array{Float64,1} = xCell
+        yCell::Array{Float64,1} = yCell
         # println("yCell ", sizeof(yCell))
         nCells = length(yCell)
         # The determination of yCellAlongLatitude in the following lines only holds for rectangular structured meshes
@@ -87,14 +95,14 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
         else
             DeltaYMax = DeltaXMax*sqrt3over2*2#+100
         end
-        xEdge = mpasOcean.xEdge
-        yEdge = mpasOcean.yEdge
+        xEdge = xEdge
+        yEdge = yEdge
 
-        angleEdge = mpasOcean.angleEdge
+        angleEdge = angleEdge
 
-        cellsOnEdge = mpasOcean.cellsOnEdge
+        cellsOnEdge = cellsOnEdge
         nEdges = length(angleEdge)
-        nCells = mpasOcean.nCells
+        nCells = nCells
         computed_angleEdge = zeros(nEdges)
         tolerance = 1e-3
 
@@ -185,7 +193,7 @@ function fix_angleEdge(mpasOcean; determineYCellAlongLatitude=true,printOutput=f
             end
         end
 	if DeltaX == 0 && DeltaY == 0
-		println("dx dy 0 iEdge: $iEdge mpascellsonedge: $(mpasOcean.cellsOnEdge[:,iEdge])")
+		println("dx dy 0 iEdge: $iEdge mpascellsonedge: $(cellsOnEdge[:,iEdge])")
 	end
         computed_angleEdge[iEdge] = returnTanInverseInProperQuadrant(DeltaX,DeltaY)
         if printOutput

@@ -39,6 +39,47 @@ function kelvinWaveGenerator(mpasOcean, lateralProfile)
     return kelvinWaveExactNormalVelocity, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition!
 end
 
+function kelvinWaveGenerator_KA(mpasOcean, lateralProfile)
+    meanCoriolisParameterf = sum(mpasOcean.fEdge) / length(mpasOcean.fEdge)
+    meanFluidThicknessH = sum(mpasOcean.bottomDepth) / length(mpasOcean.bottomDepth)
+    c = sqrt(mpasOcean.gravity*meanFluidThicknessH)
+    rossbyRadiusR = c/meanCoriolisParameterf
+    lYEdge = maximum(mpasOcean.yEdge) - minimum(mpasOcean.yEdge)
+
+    function kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t=0)
+        v = c * lateralProfile.( (mpasOcean.yEdge[iEdge] .+ c*t) .% lYEdge) .* exp.(-mpasOcean.xEdge[iEdge]/rossbyRadiusR)
+        return v .* sin.(mpasOcean.angleEdge[iEdge])
+    end
+
+    function kelvinWaveExactSSH(mpasOcean, iCell, t=0)
+        return - meanFluidThicknessH * lateralProfile.( (mpasOcean.yCell[iCell] .+ c*t) .% lYEdge ) .* exp.(-mpasOcean.xCell[iCell]/rossbyRadiusR)
+    end
+
+    function kelvinWaveExactSolution!(mpasOcean, t=0)
+
+        # just calculate exact solution once then copy it to lower layers
+        sshperlayer = kelvinWaveExactSSH(mpasOcean, collect(1:mpasOcean.nCells), t) / mpasOcean.nVertLevels
+        for k in 1:mpasOcean.nVertLevels
+            mpasOcean.layerThickness[k,:] .+= sshperlayer # add, don't replace, thickness contributes to level depth
+        end
+
+        nvperlayer = kelvinWaveExactNormalVelocity(mpasOcean, collect(1:mpasOcean.nEdges), t) / mpasOcean.nVertLevels
+        for k in 1:mpasOcean.nVertLevels
+            mpasOcean.normalVelocityCurrent[k,:] .= nvperlayer
+        end
+    end
+
+    function boundaryCondition!(mpasOcean, t)
+        for iEdge in 1:mpasOcean.nEdges
+            if mpasOcean.boundaryEdge[iEdge] == 1.0
+                mpasOcean.normalVelocityCurrent[:,iEdge] .= kelvinWaveExactNormalVelocity(mpasOcean, iEdge, t)/mpasOcean.nVertLevels
+            end
+        end
+
+    end
+
+    return kelvinWaveExactNormalVelocity, kelvinWaveExactSSH, kelvinWaveExactSolution!, boundaryCondition!
+end
 
 
 function inertiaGravityWaveParams(mpasOcean, nX, nY, etaHat)
