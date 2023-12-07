@@ -68,7 +68,7 @@ function kelvin_test(mesh_directory, base_mesh_file_name, mesh_file_name, period
         #t = 0.0
         for i in 1:nSaves
             for j in 1:nSteps
-                forward_backward_step!(mpasOcean)
+                forward_backward_step_ka!(mpasOcean)
             end
         end
         return nothing
