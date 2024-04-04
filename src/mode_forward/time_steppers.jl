@@ -1,7 +1,4 @@
 
-######## KernelAbstractions versions of time-advancing  methods
-
-
 function forward_backward_step!(mpasOcean)
     calculate_normal_velocity_tendency!(mpasOcean)
 
