@@ -1,0 +1,6 @@
+[MPASData]
+git-tree-sha1 = "833a422c1c50ee2814070bd754702821deb22626"
+lazy = true
+    [[MPASData.download]]
+    url = "https://web.cels.anl.gov/~mschanen/MPAS_Meshes.tar.gz"
+    sha256 = "825c27619601c5121437234b5d9d2ef1035000e8b4f7127223f6571761cee462"
