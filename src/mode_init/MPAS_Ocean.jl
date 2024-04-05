@@ -2,33 +2,33 @@ import NCDatasets
 using SparseArrays
 using Adapt
 using KernelAbstractions
-#using CUDA
+using CUDA
 
 include("fixAngleEdge.jl")
 
 const KA = KernelAbstractions
 
-mutable struct MPAS_Ocean{FT}
+mutable struct MPAS_Ocean{MT,IMT,VT,IVT,HIMT,QIMT,FT}
 
     # prognostic variables
-    normalVelocityCurrent::Array{FT,2}    # group velocity normal to mesh edges (edge-centered)
-    normalVelocityTendency::Array{FT,2}    # tendency (edge-centered)
+    normalVelocityCurrent::MT    # group velocity normal to mesh edges (edge-centered)
+    normalVelocityTendency::MT    # tendency (edge-centered)
 
 
-    layerThickness::Array{FT,2}
-    layerThicknessTendency::Array{FT,2}
+    layerThickness::MT
+    layerThicknessTendency::MT
 
 
-    layerThicknessEdge::Array{FT,2}
+    layerThicknessEdge::MT
 
     # (ssh used to be prognostic for single-layer, now each has its own layerthickness
-    sshCurrent::Array{FT,1}    # sea surface height (cell-centered)
+    sshCurrent::VT    # sea surface height (cell-centered)
     #     sshTendency::Array{FT,1}    # tendency (cell-centered)
 
 
 
-    bottomDepth::Array{FT,1}   # bathymetry (cell-centered)
-    bottomDepthEdge::Array{FT,1}    # bathymetry (cell-centered)
+    bottomDepth::VT   # bathymetry (cell-centered)
+    bottomDepthEdge::VT    # bathymetry (cell-centered)
     gravity::FT
     nVertLevels::Int64
     dt::FT
@@ -40,60 +40,60 @@ mutable struct MPAS_Ocean{FT}
 
     ## cell-centered arrays
     nCells::Int64  # number of cells
-    cellsOnCell::Array{Int64,2}  # indices of neighbor cells (nCells, nEdgesOnCell[Int64])
-    edgesOnCell::Array{Int64,2}  # indices of edges of cell (nCells, nEdgesOnCell[Int64])
-    verticesOnCell::Array{Int64,2}  # indices of vertices of cell (nCells, nEdgesOnCell[Int64])
-    kiteIndexOnCell::Array{Int64,2}  # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[Int64])
-    nEdgesOnCell::Array{Int64,1}  # number of edges a cell has (cell-centered)
-    edgeSignOnCell::Array{Int8,2} # orientation of edge relative to cell (nCells, nEdgesOnCell[Int64])
-    latCell::Array{FT,1}    # latitude of cell (cell-centered)
-    lonCell::Array{FT,1}    # longitude of cell (cell-centered)
-    xCell::Array{FT,1}    # x coordinate of cell (cell-centered)
-    yCell::Array{FT,1}    # y coordinate of cell (cell-centered)
-    areaCell::Array{FT,1}    # area of cell (cell-centered)
-    fCell::Array{FT,1}    # coriolis parameter (cell-centered)
-    maxLevelCell::Array{Int64,1}
-    gridSpacing::Array{FT,1}
-    boundaryCell::Array{Int64,2}  # 0 for inner cells, 1 for boundary cells (cell-centered)
-    cellMask::Array{Int64,2}
+    cellsOnCell::HIMT  # indices of neighbor cells (nCells, nEdgesOnCell[Int64])
+    edgesOnCell::HIMT  # indices of edges of cell (nCells, nEdgesOnCell[Int64])
+    verticesOnCell::HIMT  # indices of vertices of cell (nCells, nEdgesOnCell[Int64])
+    kiteIndexOnCell::IMT  # index of kite shape on cell connecting vertex, midpoint of edge, center of cell, and midpoint of other edge (nCells, nEdgesOnCell[Int64])
+    nEdgesOnCell::IVT  # number of edges a cell has (cell-centered)
+    edgeSignOnCell::QIMT # orientation of edge relative to cell (nCells, nEdgesOnCell[Int64])
+    latCell::VT    # latitude of cell (cell-centered)
+    lonCell::VT    # longitude of cell (cell-centered)
+    xCell::VT    # x coordinate of cell (cell-centered)
+    yCell::VT    # y coordinate of cell (cell-centered)
+    areaCell::VT    # area of cell (cell-centered)
+    fCell::VT    # coriolis parameter (cell-centered)
+    maxLevelCell::IVT
+    gridSpacing::VT
+    boundaryCell::IMT  # 0 for inner cells, 1 for boundary cells (cell-centered)
+    cellMask::IMT
 
 
     ## edge-centered arrays
     nEdges::Int64
-    cellsOnEdge::Array{Int64,2}  # indices of the two cells on this edge (nEdges, 2)
-    edgesOnEdge::Array{Int64,2}
-    verticesOnEdge::Array{Int64,2}
-    nEdgesOnEdge::Array{Int64,1}
-    xEdge::Array{FT,1}
-    yEdge::Array{FT,1}
-    dvEdge::Array{FT,1}
-    dcEdge::Array{FT,1}
-    fEdge::Array{FT,1}    # coriolis parameter
-    angleEdge::Array{FT,1}
-    weightsOnEdge::Array{FT,2}    # coeffecients of norm vels of surrounding edges in linear combination to compute tangential velocity
-    maxLevelEdgeTop::Array{Int64,1}
-    maxLevelEdgeBot::Array{Int64,1}
-    boundaryEdge::Array{Int64,2}
-    edgeMask::Array{Int64,2}
+    cellsOnEdge::HIMT  # indices of the two cells on this edge (nEdges, 2)
+    edgesOnEdge::HIMT
+    verticesOnEdge::HIMT
+    nEdgesOnEdge::IVT
+    xEdge::VT
+    yEdge::VT
+    dvEdge::VT
+    dcEdge::VT
+    fEdge::VT    # coriolis parameter
+    angleEdge::VT
+    weightsOnEdge::MT    # coeffecients of norm vels of surrounding edges in linear combination to compute tangential velocity
+    maxLevelEdgeTop::IVT
+    maxLevelEdgeBot::IVT
+    boundaryEdge::IMT
+    edgeMask::IMT
 
 
     ## vertex-centered arrays
     nVertices::Int64
-    latVertex::Array{FT,1}
-    lonVertex::Array{FT,1}
-    xVertex::Array{FT,1}
-    yVertex::Array{FT,1}
+    latVertex::VT
+    lonVertex::VT
+    xVertex::VT
+    yVertex::VT
     vertexDegree::Int64
-    cellsOnVertex::Array{Int64}
-    edgesOnVertex::Array{Int64}
-    edgeSignOnVertex::Array{Int8}
-    fVertex::Array{FT}
-    areaTriangle::Array{FT}
-    kiteAreasOnVertex::Array{FT}
-    maxLevelVertexTop::Array{Int64}
-    maxLevelVertexBot::Array{Int64}
-    boundaryVertex::Array{Int64,2}
-    vertexMask::Array{Int64,2}
+    cellsOnVertex::HIMT
+    edgesOnVertex::HIMT
+    edgeSignOnVertex::QIMT
+    fVertex::VT
+    areaTriangle::VT
+    kiteAreasOnVertex::MT
+    maxLevelVertexTop::IVT
+    maxLevelVertexBot::IVT
+    boundaryVertex::IMT
+    vertexMask::IMT
 
 
     gridSpacingMagnitude::FT
@@ -105,7 +105,8 @@ mutable struct MPAS_Ocean{FT}
     nNonPeriodicBoundaryCells::Int64
     nNonPeriodicBoundaryEdges::Int64
     nNonPeriodicBoundaryVertices::Int64
-
+    nSteps::Int64
+    nSaves::Int64
     backend::KA.Backend
 
 end
@@ -537,8 +538,8 @@ function MPAS_Ocean{FT}(
             _nNonPeriodicBoundaryCells += 1
         end
     end
-    ############END#############
-    return MPAS_Ocean{FT}(
+
+    return MPAS_Ocean{Matrix{Float64},Matrix{Int64},Vector{Float64},Vector{Int64}, Matrix{Int32}, Matrix{Int8},FT}(
         adapt(backend, _normalVelocityCurrent),
         adapt(backend, _normalVelocityTendency),
         adapt(backend, _layerThickness),
@@ -547,31 +548,31 @@ function MPAS_Ocean{FT}(
         adapt(backend, _sshCurrent),
         adapt(backend, _bottomDepth),
         adapt(backend, _bottomDepthEdge),
-        adapt(backend, _gravity),
+        _gravity,
         _nVertLevels,
-        adapt(backend, _dt),
+        _dt,
         _nCells,
-        _cellsOnCell,
-        _edgesOnCell,
-        _verticesOnCell,
-        _kiteIndexOnCell,
-        _nEdgesOnCell,
-        _edgeSignOnCell,
+        adapt(backend, _cellsOnCell),
+        adapt(backend, _edgesOnCell),
+        adapt(backend, _verticesOnCell),
+        adapt(backend, _kiteIndexOnCell),
+        adapt(backend, _nEdgesOnCell),
+        adapt(backend, _edgeSignOnCell),
         adapt(backend, _latCell),
         adapt(backend, _lonCell),
         adapt(backend, _xCell),
         adapt(backend, _yCell),
         adapt(backend, _areaCell),
         adapt(backend, _fCell),
-        _maxLevelCell,
+        adapt(backend, _maxLevelCell),
         adapt(backend, _gridSpacing),
-        _boundaryCell,
-        _cellMask,
+        adapt(backend, _boundaryCell),
+        adapt(backend, _cellMask),
         _nEdges,
-        _cellsOnEdge,
-        _edgesOnEdge,
-        _verticesOnEdge,
-        _nEdgesOnEdge,
+        adapt(backend, _cellsOnEdge),
+        adapt(backend, _edgesOnEdge),
+        adapt(backend, _verticesOnEdge),
+        adapt(backend, _nEdgesOnEdge),
         adapt(backend, _xEdge),
         adapt(backend, _yEdge),
         adapt(backend, _dvEdge),
@@ -579,39 +580,40 @@ function MPAS_Ocean{FT}(
         adapt(backend, _fEdge),
         adapt(backend, _angleEdge),
         adapt(backend, _weightsOnEdge),
-        _maxLevelEdgeTop,
-        _maxLevelEdgeBot,
-        _boundaryEdge,
-        _edgeMask,
+        adapt(backend, _maxLevelEdgeTop),
+        adapt(backend, _maxLevelEdgeBot),
+        adapt(backend, _boundaryEdge),
+        adapt(backend, _edgeMask),
         _nVertices,
         adapt(backend, _latVertex),
         adapt(backend, _lonVertex),
         adapt(backend, _xVertex),
         adapt(backend, _yVertex),
         _vertexDegree,
-        _cellsOnVertex,
-        _edgesOnVertex,
-        _edgeSignOnVertex,
+        adapt(backend, _cellsOnVertex),
+        adapt(backend, _edgesOnVertex),
+        adapt(backend, _edgeSignOnVertex),
         adapt(backend, _fVertex),
         adapt(backend, _areaTriangle),
         adapt(backend, _kiteAreasOnVertex),
-        _maxLevelVertexTop,
-        _maxLevelVertexBot,
-        _boundaryVertex,
-        _vertexMask,
-        adapt(backend, _gridSpacingMagnitude),
-        adapt(backend, _lX),
-        adapt(backend, _lY),
+        adapt(backend, _maxLevelVertexTop),
+        adapt(backend, _maxLevelVertexBot),
+        adapt(backend, _boundaryVertex),
+        adapt(backend, _vertexMask),
+        _gridSpacingMagnitude,
+        _lX,
+        _lY,
         _nNonPeriodicBoundaryCells,
         _nNonPeriodicBoundaryEdges,
         _nNonPeriodicBoundaryVertices,
+        0,
+        0,
         backend,
     )
 end
-#end
 
 
-function Adapt.adapt(mpasOcean::MPAS_Ocean, backend = CPU()) #backend=CUDABackend())
+function Adapt.adapt(backend, mpasOcean::MPAS_Ocean) #backend=CUDABackend())
     return MPAS_Ocean(
         adapt(backend, mpasOcean.normalVelocityCurrent),
         adapt(backend, mpasOcean.normalVelocityTendency),
@@ -621,31 +623,31 @@ function Adapt.adapt(mpasOcean::MPAS_Ocean, backend = CPU()) #backend=CUDABacken
         adapt(backend, mpasOcean.sshCurrent),
         adapt(backend, mpasOcean.bottomDepth),
         adapt(backend, mpasOcean.bottomDepthEdge),
-        adapt(backend, mpasOcean.gravity),
+        mpasOcean.gravity,
         mpasOcean.nVertLevels,
-        adapt(backend, mpasOcean.dt),
+        mpasOcean.dt,
         mpasOcean.nCells,
-        mpasOcean.cellsOnCell,
-        mpasOcean.edgesOnCell,
-        mpasOcean.verticesOnCell,
-        mpasOcean.kiteIndexOnCell,
-        mpasOcean.nEdgesOnCell,
-        mpasOcean.edgeSignOnCell,
+        adapt(backend, mpasOcean.cellsOnCell),
+        adapt(backend, mpasOcean.edgesOnCell),
+        adapt(backend, mpasOcean.verticesOnCell),
+        adapt(backend, mpasOcean.kiteIndexOnCell),
+        adapt(backend, mpasOcean.nEdgesOnCell),
+        adapt(backend, mpasOcean.edgeSignOnCell),
         adapt(backend, mpasOcean.latCell),
         adapt(backend, mpasOcean.lonCell),
         adapt(backend, mpasOcean.xCell),
         adapt(backend, mpasOcean.yCell),
         adapt(backend, mpasOcean.areaCell),
         adapt(backend, mpasOcean.fCell),
-        mpasOcean.maxLevelCell,
+        adapt(backend, mpasOcean.maxLevelCell),
         adapt(backend, mpasOcean.gridSpacing),
-        mpasOcean.boundaryCell,
-        mpasOcean.cellMask,
+        adapt(backend, mpasOcean.boundaryCell),
+        adapt(backend, mpasOcean.cellMask),
         mpasOcean.nEdges,
-        mpasOcean.cellsOnEdge,
-        mpasOcean.edgesOnEdge,
-        mpasOcean.verticesOnEdge,
-        mpasOcean.nEdgesOnEdge,
+        adapt(backend, mpasOcean.cellsOnEdge),
+        adapt(backend, mpasOcean.edgesOnEdge),
+        adapt(backend, mpasOcean.verticesOnEdge),
+        adapt(backend, mpasOcean.nEdgesOnEdge),
         adapt(backend, mpasOcean.xEdge),
         adapt(backend, mpasOcean.yEdge),
         adapt(backend, mpasOcean.dvEdge),
@@ -653,32 +655,34 @@ function Adapt.adapt(mpasOcean::MPAS_Ocean, backend = CPU()) #backend=CUDABacken
         adapt(backend, mpasOcean.fEdge),
         adapt(backend, mpasOcean.angleEdge),
         adapt(backend, mpasOcean.weightsOnEdge),
-        mpasOcean.maxLevelEdgeTop,
-        mpasOcean.maxLevelEdgeBot,
-        mpasOcean.boundaryEdge,
-        mpasOcean.edgeMask,
+        adapt(backend, mpasOcean.maxLevelEdgeTop),
+        adapt(backend, mpasOcean.maxLevelEdgeBot),
+        adapt(backend, mpasOcean.boundaryEdge),
+        adapt(backend, mpasOcean.edgeMask),
         mpasOcean.nVertices,
         adapt(backend, mpasOcean.latVertex),
         adapt(backend, mpasOcean.lonVertex),
         adapt(backend, mpasOcean.xVertex),
         adapt(backend, mpasOcean.yVertex),
         mpasOcean.vertexDegree,
-        mpasOcean.cellsOnVertex,
-        mpasOcean.edgesOnVertex,
-        mpasOcean.edgeSignOnVertex,
+        adapt(backend, mpasOcean.cellsOnVertex),
+        adapt(backend, mpasOcean.edgesOnVertex),
+        adapt(backend, mpasOcean.edgeSignOnVertex),
         adapt(backend, mpasOcean.fVertex),
         adapt(backend, mpasOcean.areaTriangle),
         adapt(backend, mpasOcean.kiteAreasOnVertex),
-        mpasOcean.maxLevelVertexTop,
-        mpasOcean.maxLevelVertexBot,
-        mpasOcean.boundaryVertex,
-        mpasOcean.vertexMask,
+        adapt(backend, mpasOcean.maxLevelVertexTop),
+        adapt(backend, mpasOcean.maxLevelVertexBot),
+        adapt(backend, mpasOcean.boundaryVertex),
+        adapt(backend, mpasOcean.vertexMask),
         adapt(backend, mpasOcean.gridSpacingMagnitude),
         adapt(backend, mpasOcean.lX),
         adapt(backend, mpasOcean.lY),
         mpasOcean.nNonPeriodicBoundaryCells,
         mpasOcean.nNonPeriodicBoundaryEdges,
         mpasOcean.nNonPeriodicBoundaryVertices,
+        mpasOcean.nSteps,
+        mpasOcean.nSaves,
         backend,
     )
 end

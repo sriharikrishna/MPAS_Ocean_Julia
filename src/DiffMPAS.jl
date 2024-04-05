@@ -9,8 +9,6 @@ export MPAS_Ocean,
     kelvinWaveExactSolution!,
     kevlinWaveExactSSH,
     kelvinWaveExactNormalVelocity,
-    kelvinWaveGenerator,
-    seed,
-    kelvin_test
+    kelvinWaveGenerator
 export forward_backward_step!
 end # module DiffMPAS
